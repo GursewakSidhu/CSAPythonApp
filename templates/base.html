@@ -1,0 +1,312 @@
+<html>
+    <head>
+        <title>{% block title %}{% endblock %}</title>
+        <style>
+             body {
+                background-color: #f9f9fa
+            }
+
+            .flex {
+                -webkit-box-flex: 1;
+                -ms-flex: 1 1 auto;
+                flex: 1 1 auto
+            }
+
+            @media (max-width:991.98px) {
+                .padding {
+                    padding: 1.5rem
+                }
+            }
+
+            @media (max-width:767.98px) {
+                .padding {
+                    padding: 1rem
+                }
+            }
+
+            .padding {
+                padding: 5rem
+            }
+
+            .card {
+                background: #fff;
+                border-width: 0;
+                border-radius: .25rem;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, .05);
+                margin-bottom: 1.5rem
+            }
+
+            .card {
+                left: 785px !important;
+                top: 240px !important;
+                position: absolute !important;
+                display: flex;
+                flex-direction: column;
+                min-width: 0;
+                word-wrap: break-word;
+                background-color: #fff;
+                background-clip: border-box;
+                border: 1px solid rgba(19, 24, 44, .125);
+                border-radius: .25rem
+            }
+
+            .card-header {
+                padding: .75rem 1.25rem;
+                margin-bottom: 0;
+                background-color: rgba(19, 24, 44, .03);
+                border-bottom: 1px solid rgba(19, 24, 44, .125)
+            }
+
+            .card-header:first-child {
+                border-radius: calc(.25rem - 1px) calc(.25rem - 1px) 0 0
+            }
+
+            card-footer,
+            .card-header {
+                background-color: transparent;
+                border-color: rgba(160, 175, 185, .15);
+                background-clip: padding-box
+            }
+            table tr th{
+                background-color: rgba(160, 175, 185, .15);
+            }
+        </style>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
+        <script src="https://sdk.amazonaws.com/js/aws-sdk-2.7.16.min.js"></script>
+        <script src="amazon-cognito-identity.min.js"></script>
+        <script src="aws-cognito-sdk.min.js"></script>
+        <script src='https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.1.4/Chart.bundle.min.js'></script>
+        <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.10.2/dist/umd/popper.min.js" integrity="sha384-7+zCNj/IqJ95wo16oMtfsKbZ9ccEh31eOz1HGyDuCQ6wgnyJNSYdrPa03rtR1zdB" crossorigin="anonymous"></script>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js" integrity="sha384-QJHtvGhmr9XOIpI6YVutG+2QOK9T+ZnN4kzFN1RtK3zEFEIsxhlmWl5/YESvpZ13" crossorigin="anonymous"></script>
+        
+        <script>
+            var idToken = null;
+
+            function checkLogin() {
+                var url_string = window.location.href;
+                var url = new URL(url_string);
+                idToken = url.searchParams.get("id_token");
+                if (idToken != null) {
+                    document.getElementById("welcomeMsg").innerHTML = "Welcome to Apple Inventory, You have signed in now!";
+                    auth();
+                }else{
+                    $("#welcomeMsg").hide();   
+                }
+            }
+
+            function auth() {
+                AWS.config.update({
+                region: "us-east-1",
+                });
+
+                AWS.config.credentials = new AWS.CognitoIdentityCredentials({
+                        IdentityPoolId : 'us-east-1:65bdbb01-5817-4d83-bab7-e3e975a22637',
+                        Logins : {
+                        "cognito-idp.us-east-1.amazonaws.com/us-east-1_S4zR5OoJB": idToken
+                        }
+                    });
+            }
+            $(document).ready(function() {
+                if(window.location.href.indexOf("#") > -1){
+                    window.location = window.location.href.replace("#", "?");
+                }
+                function CreateChart(labeled,data,allItemsChart){
+                    var store = $("#dropdownMenuButton option:selected").text();
+                    var ctx = $("#chart-line");
+                    var myLineChart = new Chart(ctx, {
+                        type: 'horizontalBar',
+                        data: {
+                            labels: labeled,
+                            datasets: [{
+                                data: data,
+                                label: "Inventory",
+                                borderColor: "#458af7",
+                                backgroundColor: '#458af7',
+                                fill: false
+                            }]
+                        },
+                        options: {
+                            title: {
+                                display: true,
+                                text: 'Apple Store Inventory count at ' + store
+                            }
+                        }
+                    });
+                    if(!allItemsChart){
+                        setTimeout(function(){
+                            $("#chart-line").css({display: "block",height: "300px",width: "460px"});
+                            $(".card-body").css({height: "330px"});
+                        }, 10);
+                    }else{
+                        setTimeout(function(){
+                            $("#chart-line").css({display: "block",height: "480px",width: "650px"});
+                            $(".card-body").css({height: "485px"});
+                        }, 10);
+                    }
+                }
+                function readAppleItem() {
+                    var store = $("#dropdownMenuButton option:selected").text();
+                    var docClient = new AWS.DynamoDB.DocumentClient();
+                    var params = {
+                        TableName: "apple",
+                        Key:{
+                            "store": store,// Partition Key
+                            //"count": "3" // Sort/Range Key
+                        }
+                    };
+                    docClient.get(params, function(err, data) {
+                        if (err) {
+                            alert(JSON.stringify(err, undefined, 2));
+                            //document.getElementById('textarea').innerHTML = "Unable to read item: " + "\n" + JSON.stringify(err, undefined, 2);
+                        } else {
+                            let obj = data.Item.data.replace(/^\s+|\s+$/g, "");
+                            var items = JSON.parse(obj);
+                            var xAxisLabels = [];
+                            var yAxisLabels = [];
+                            $.each(items, function(index, value) {
+                                xAxisLabels.push(value.Item);
+                                yAxisLabels.push(value.Count);
+                                $('#appleTable').append('<tr><td>'+store+'</td><td>'+value.Item +'</td><td>'+ value.Count +'</td></tr>');
+                            });
+                            $("#cognitoLbl").css({"margin-top":"170px"});
+                            CreateChart(xAxisLabels, yAxisLabels, false);
+                        }
+                    });
+                }
+                var xAxisLabels = [];
+                var yAxisLabels = [];
+                function readAppleAllItems(store, lastItem) {
+                    var docClient = new AWS.DynamoDB.DocumentClient();
+                    var params = {
+                        TableName: "apple",
+                        Key:{
+                            "store": store,// Partition Key
+                            //"count": "3" // Sort/Range Key
+                        }
+                    };
+                    docClient.get(params, function(err, data) {
+                        if (err) {
+                            alert(JSON.stringify(err, undefined, 2));
+                        } else {
+                            var obj = data.Item.data.replace(/^\s+|\s+$/g, "");
+                            var items = JSON.parse(obj);
+                            $.each(items, function(index, value) {
+                                xAxisLabels.push(value.Item+"("+store+")");
+                                yAxisLabels.push(value.Count);
+                                $('#appleTable').append('<tr><td>All Stores ('+ store +')</td><td>'+value.Item +'</td><td>'+ value.Count +'</td></tr>');
+                            });
+                            if(lastItem === true){
+                                CreateChart(xAxisLabels, yAxisLabels, true);
+                            }
+                        }
+                    });
+                }
+                $("#dropdownMenuButton").change(function () {
+                    $("iframe").remove();
+                    $("#cognitoLbl").css({"margin-top":"-125px"});
+                    let store = this.value;
+                    $("#appleTable tbody tr td").remove();
+                    if(store === "All Stores"){
+                        xAxisLabels = [];
+                        yAxisLabels = [];
+                        $(".card").show();
+                        storesListItems = $("#dropdownMenuButton option");
+                        for (var i = 1; i < storesListItems.length-1; i++) {
+                            if(i == storesListItems.length-2){
+                                readAppleAllItems($(storesListItems[i]).text(), true);        
+                            }else{
+                                readAppleAllItems($(storesListItems[i]).text(), false);
+                            }
+                        }
+                    }else if (store !== ""){
+                        $(".card").show();
+                        readAppleItem();
+                    }else{
+                        $(".card").hide();
+                        //alert("Please select valid store");
+                    }
+                });
+                $(".card").hide();
+            });
+        </script>
+    </head>
+    <body onload="checkLogin()">
+        <div id="loginPanel" style="float: right;padding-right: 10px;">
+            <div id="welcomeMsg"></div>
+            <a style="float: right;" id="loginLink" href="https://cloudsolutionproject.auth.us-east-1.amazoncognito.com/login?client_id=27qf49nvhffola8cos08shh6no&response_type=token&scope=phone+email+openid+aws.cognito.signin.user.admin+profile&redirect_uri=http://localhost:5000/">Login</a>
+        </div>
+        <div id="dashboardDiv" style="background-color: lightgray; padding-left:50px;height:200px;">
+            <h1 style="font-size: 5.5rem;">Inventory Dashboard</h1>
+            <h2>Choose a store to view current inventory levels.</h2>
+        </div>
+        <div class="container">
+            <div class="row">
+                <div class="col-md-2">
+                    <label>
+                        Store:
+                    </label>
+                    <div class="dropdown">
+                        <select id="dropdownMenuButton">
+                            <option value="">Select one store...</option>
+                            <option value="Canada">Canada</option>
+                            <option value="USA">USA</option>
+                            <option value="UK">UK</option>
+                            <option value="Japan">Japan</option>
+                            <option value="France">France</option>
+                            <option value="All Stores">All Stores</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <table id="appleTable">
+                        <th width="150px">
+                            Store
+                        </th>
+                        <th width="200px">
+                            Item
+                        </th>
+                        <th width="100px">
+                            Count
+                        </th>
+                        <th>
+                            Inventory
+                        </th>
+                <tbody></tbody>
+            </table>
+            <div class="col-md-4">
+                <canvas id="horizontalBar" style="position: absolute;"></canvas>
+                    <div class="page-content page-container" id="page-content">
+                        <div class="padding">
+                            <div class="row">
+                                <div class="container-fluid d-flex justify-content-center">
+                                    <div class="col-sm-8 col-md-6">
+                                        <div class="card">
+                                            <!-- <div class="card-header">Inventory</div> -->
+                                            <div class="card-body" style="height: 320px">
+                                                <div class="chartjs-size-monitor" style="position: absolute; left: 0px; top: 0px; right: 0px; bottom: 0px; overflow: hidden; pointer-events: none; visibility: hidden; z-index: -1;">
+                                                    <div class="chartjs-size-monitor-expand" style="position:absolute;left:0;top:0;right:0;bottom:0;overflow:hidden;pointer-events:none;visibility:hidden;z-index:-1;">
+                                                        <div style="position:absolute;width:1000000px;height:1000000px;left:0;top:0"></div>
+                                                    </div>
+                                                    <div class="chartjs-size-monitor-shrink" style="position:absolute;left:0;top:0;right:0;bottom:0;overflow:hidden;pointer-events:none;visibility:hidden;z-index:-1;">
+                                                        <div style="position:absolute;width:200%;height:200%;left:0; top:0"></div>
+                                                    </div>
+                                                </div> <canvas id="chart-line" width="299" height="200" class="chartjs-render-monitor" style="display: block; width: 299px; height: 200px;"></canvas>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+            </div>
+        </div>
+            </div>
+        </div>
+        <div id="cognitoLbl" class=" col-md-offset-10 col-md-offset-2" style="float: right; padding-right: 100px;margin-top: -125px;font-weight: bold;" >
+            <label>This page uses an Amazon Cognito identity to retrieve data directly from Amazon DynamoDB.</label>
+        </div>
+        {% block content %}
+        {% endblock %}
+    </body>
+</html>
